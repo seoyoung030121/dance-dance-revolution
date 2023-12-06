@@ -5,6 +5,114 @@ from pygame.rect import *
 pygame.init()
 pygame.display.set_caption("esw")
 
+# 방향 아이콘 클래스
+class Direction(object):
+    def __init__(self):
+        self.pos = None
+        self.direction = 0
+        self.image = pygame.image.load(f"Image/direction.png")
+        self.image = pygame.transform.scale(self.image, (40, 40))  # Adjust the icon size
+        self.rotated_image = pygame.transform.rotate(self.image, 0)
+        self.y = -1
+        self.x = int(SCREEN_WIDTH * 0.75) - (self.image.get_width() / 2)
+        self.createTime = pygame.time.get_ticks()
+
+    def rotate(self, direction=0):
+        self.direction = direction
+        self.rotated_image = pygame.transform.rotate(
+            self.image, 90 * self.direction)
+
+    def draw(self):
+        if self.y >= SCREEN_HEIGHT:
+            self.y = -1
+            return True
+        elif self.y == -1:
+            return False
+        else:
+            self.y += 0.5
+            self.pos = screen.blit(self.rotated_image, (self.x, self.y))
+            return False
+
+# Character 클래스
+class Character(object):
+    def __init__(self):
+        self.images = {
+            "up": pygame.image.load("Image/characterU.png"),
+            "down": pygame.image.load("Image/characterD.png"),
+            "left": pygame.image.load("Image/characterL.png"),
+            "right": pygame.image.load("Image/characterR.png"),
+        }
+        self.direction = "down"
+        self.image = self.images[self.direction]
+        self.image = pygame.transform.scale(self.image, (80, 80))
+        self.rect = self.image.get_rect()
+        self.rect.centerx = SCREEN_WIDTH // 2 - resultImgRec.width // 2 - 20
+        self.rect.centery = SCREEN_HEIGHT // 2
+
+    def update_image(self):
+        self.image = self.images[self.direction]
+        self.image = pygame.transform.scale(self.image, (80, 80))
+
+    def move(self, direction):
+        if direction == 0:
+            self.direction = "up"
+        elif direction == 1:
+            self.direction = "left"
+        elif direction == 2:
+            self.direction = "down"
+        elif direction == 3:
+            self.direction = "right"
+        else:
+            self.direction = "down"
+
+        self.update_image()
+
+    def draw(self):
+        screen.blit(self.image, self.rect)
+
+# 변수
+isActive = True
+SCREEN_WIDTH = 240
+SCREEN_HEIGHT = 240
+chance_MAX = 3
+score = 0
+combo = 0
+chance = chance_MAX
+isColl = False
+CollDirection = 0
+DrawResult, result_ticks = 0, 0
+start_ticks = pygame.time.get_ticks()
+
+perfectTolerance = 10  # 사용자 입력이 'Perfect' 판정을 받기 위한 거리 허용 범위
+goodTolerance = 30  # 사용자 입력이 'Good' 판정을 받기 위한 거리 허용 범위
+
+clock = pygame.time.Clock()
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+background = pygame.image.load("Image/background.png")
+background = pygame.transform.scale(background, (SCREEN_WIDTH, SCREEN_HEIGHT))
+bgm = pygame.mixer.Sound("music.ogg")
+bgm.set_volume(0.7)
+
+Directions = [Direction() for i in range(0, 10)] # 방향 아이콘
+targetArea = Rect(SCREEN_WIDTH / 2, 160, SCREEN_WIDTH / 2, 70) # 타겟 박스
+
+resultFileNames = ["Image/miss.png", "Image/perfect.png", "Image/good.png", "Image/bad.png"] # 결과 이모티콘
+resultImg = []
+for i, name in enumerate(resultFileNames):
+    resultImg.append(pygame.image.load(name))
+    resultImg[i] = pygame.transform.scale(resultImg[i], (100, 50))
+resultImgRec = resultImg[0].get_rect()
+resultImgRec.centerx = SCREEN_WIDTH / 2 - resultImgRec.width / 2 - 20
+resultImgRec.centery = targetArea.centery
+
+gradeFileNames = ["Image/gradeA.png", "Image/gradeB.png", "Image/gradeC.png", "Image/gradeD.png", "Image/gradeF.png"] # 결과
+gradeImg = []
+for i, name in enumerate(gradeFileNames):
+    gradeImg.append(pygame.image.load(name))
+    gradeImg[i] = pygame.transform.scale(gradeImg[i], (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+character = Character()
+
 # 입력과 direction이 일치하는지 확인
 def resultProcess(direction):
     global isColl, score, DrawResult, result_ticks, combo
@@ -69,34 +177,6 @@ def eventProcess():
                         direc.y = -1
                     character.move(2)
 
-# 방향 아이콘 클래스
-class Direction(object):
-    def __init__(self):
-        self.pos = None
-        self.direction = 0
-        self.image = pygame.image.load(f"Image/direction.png")
-        self.image = pygame.transform.scale(self.image, (40, 40))  # Adjust the icon size
-        self.rotated_image = pygame.transform.rotate(self.image, 0)
-        self.y = -1
-        self.x = int(SCREEN_WIDTH * 0.75) - (self.image.get_width() / 2)
-        self.createTime = pygame.time.get_ticks()
-
-    def rotate(self, direction=0):
-        self.direction = direction
-        self.rotated_image = pygame.transform.rotate(
-            self.image, 90 * self.direction)
-
-    def draw(self):
-        if self.y >= SCREEN_HEIGHT:
-            self.y = -1
-            return True
-        elif self.y == -1:
-            return False
-        else:
-            self.y += 0.5
-            self.pos = screen.blit(self.rotated_image, (self.x, self.y))
-            return False
-
 # 방향 아이콘 생성과 그리기
 def drawIcon():
     global start_ticks, chance
@@ -130,7 +210,7 @@ def draw_targetArea():
             break
     pygame.draw.rect(screen, (255, 255, 255), targetArea, 2)
 
-# 점수, 콤보, 목숨, 결과
+# 점수, 콤보, 목숨
 def setText():
     global score, chance
     mFont = pygame.font.SysFont("굴림", 20)
@@ -144,6 +224,7 @@ def setText():
     mtext = mFont.render(f'chance: {chance}', True, 'white')
     screen.blit(mtext, (170, 10, 0, 0))
 
+# 게임 결과 그리기
 def drawGrade():
     global score, chance
 
@@ -182,86 +263,6 @@ def drawResult():
 
     screen.blit(displayResultImg, resultImgRec)
 
-# Character 클래스
-class Character(object):
-    def __init__(self):
-        self.images = {
-            "up": pygame.image.load("Image/characterU.png"),
-            "down": pygame.image.load("Image/characterD.png"),
-            "left": pygame.image.load("Image/characterL.png"),
-            "right": pygame.image.load("Image/characterR.png"),
-        }
-        self.direction = "down"
-        self.image = self.images[self.direction]
-        self.image = pygame.transform.scale(self.image, (80, 80))
-        self.rect = self.image.get_rect()
-        self.rect.centerx = SCREEN_WIDTH // 2 - resultImgRec.width // 2 - 20
-        self.rect.centery = SCREEN_HEIGHT // 2
-
-    def update_image(self):
-        self.image = self.images[self.direction]
-        self.image = pygame.transform.scale(self.image, (80, 80))
-
-    def move(self, direction):
-        if direction == 0:
-            self.direction = "up"
-        elif direction == 1:
-            self.direction = "left"
-        elif direction == 2:
-            self.direction = "down"
-        elif direction == 3:
-            self.direction = "right"
-        else:
-            self.direction = "down"
-
-        self.update_image()
-
-    def draw(self):
-        screen.blit(self.image, self.rect)
-
-
-# 변수
-isActive = True
-SCREEN_WIDTH = 240
-SCREEN_HEIGHT = 240
-chance_MAX = 3
-score = 0
-combo = 0
-chance = chance_MAX
-isColl = False
-CollDirection = 0
-DrawResult, result_ticks = 0, 0
-start_ticks = pygame.time.get_ticks()
-
-perfectTolerance = 10  # 사용자 입력이 'Perfect' 판정을 받기 위한 거리 허용 범위
-goodTolerance = 30  # 사용자 입력이 'Good' 판정을 받기 위한 거리 허용 범위
-
-clock = pygame.time.Clock()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-background = pygame.image.load("Image/background.png")
-background = pygame.transform.scale(background, (SCREEN_WIDTH, SCREEN_HEIGHT))
-bgm = pygame.mixer.Sound("music.ogg")
-bgm.set_volume(0.7)
-
-Directions = [Direction() for i in range(0, 10)] # 방향 아이콘
-targetArea = Rect(SCREEN_WIDTH / 2, 160, SCREEN_WIDTH / 2, 70) # 타겟 박스
-
-resultFileNames = ["Image/miss.png", "Image/perfect.png", "Image/good.png", "Image/bad.png"] # 결과 이모티콘
-resultImg = []
-for i, name in enumerate(resultFileNames):
-    resultImg.append(pygame.image.load(name))
-    resultImg[i] = pygame.transform.scale(resultImg[i], (100, 50))
-resultImgRec = resultImg[0].get_rect()
-resultImgRec.centerx = SCREEN_WIDTH / 2 - resultImgRec.width / 2 - 20
-resultImgRec.centery = targetArea.centery
-
-gradeFileNames = ["Image/gradeA.png", "Image/gradeB.png", "Image/gradeC.png", "Image/gradeD.png", "Image/gradeF.png"] # 결과
-gradeImg = []
-for i, name in enumerate(gradeFileNames):
-    gradeImg.append(pygame.image.load(name))
-    gradeImg[i] = pygame.transform.scale(gradeImg[i], (SCREEN_WIDTH, SCREEN_HEIGHT))
-
-character = Character()
 
 # 시작화면
 start_image = pygame.image.load("Image/start.png")
