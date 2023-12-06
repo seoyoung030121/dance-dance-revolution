@@ -1,35 +1,30 @@
-from PIL import Image, ImageDraw, ImageFont
 import pygame
+from PIL import Image, ImageDraw, ImageFont
 import random
 from colorsys import hsv_to_rgb
-from pygame.rect import *
 from Joystick import Joystick
 
-pygame.init()
-pygame.display.set_caption("esw")
-
-# 입력과 direction이 일치하는지 확인
+# Check if input and direction match
 def resultProcess(direction):
     global isColl, score, DrawResult, result_ticks, combo
 
     if isColl and CollDirection.direction == direction:
-
-        # targetArea의 중앙과 아이콘의 중심 사이의 거리 계산
-        distanceDifference = abs(targetArea.centerx - (CollDirection.x + CollDirection.image.get_width() / 2)) + abs(targetArea.centery - (CollDirection.y + CollDirection.image.get_height() / 2))
+        # Calculate the distance between the center of targetArea and the center of the icon
+        distanceDifference = abs(targetArea.centerx - (CollDirection.x + CollDirection.image.width / 2)) + abs(targetArea.centery - (CollDirection.y + CollDirection.image.height / 2))
 
         if distanceDifference < perfectTolerance:
             score += 100
-            combo += 1  # 정확한 입력 콤보 카운터 증가
+            combo += 1  # Increment correct input combo counter
             DrawResult = 1
         elif distanceDifference < goodTolerance:
             score += 70
-            combo += 1  # 정확한 입력 콤보 카운터 증가
+            combo += 1  # Increment correct input combo counter
             DrawResult = 2
         else:
             score += 30
-            combo = 0  # 잘못된 입력에 따른 콤보 카운터 초기화
+            combo = 0  # Initialize combo counter based on invalid input
 
-        # 콤보 보너스 점수 추가
+        # Add combo bonus points
         if combo == 10:
             score += 10
         elif combo == 50:
@@ -40,11 +35,10 @@ def resultProcess(direction):
         CollDirection.y = -1
     else:
         DrawResult = 3
-        combo = 0  # 잘못된 입력에 따른 콤보 카운터 초기화
+        combo = 0  # Initialize combo counter based on invalid input
     result_ticks = pygame.time.get_ticks()
 
-# 키 입력
-# 키 입력
+# Check if input and direction match
 def eventProcess():
     global isActive, score, chance
     command = None
@@ -66,22 +60,21 @@ def eventProcess():
         character.move(3)
         resultProcess(3)
 
-# 방향 아이콘 클래스
+# Direction icon class
 class Direction(object):
     def __init__(self):
         self.pos = None
         self.direction = 0
-        self.image = pygame.image.load(f"Image/direction.png")
-        self.image = pygame.transform.scale(self.image, (40, 40))  # Adjust the icon size
-        self.rotated_image = pygame.transform.rotate(self.image, 0)
+        self.image = Image.open("Image/direction.png").convert("RGBA")
+        self.image = self.image.resize((40, 40))  # Adjust the icon size
+        self.rotated_image = self.image.rotate(0)
         self.y = -1
-        self.x = int(SCREEN_WIDTH * 0.75) - (self.image.get_width() / 2)
+        self.x = int(SCREEN_WIDTH * 0.75) - (self.image.width / 2)
         self.createTime = pygame.time.get_ticks()
 
     def rotate(self, direction=0):
         self.direction = direction
-        self.rotated_image = pygame.transform.rotate(
-            self.image, 90 * self.direction)
+        self.rotated_image = self.image.rotate(90 * self.direction)
 
     def draw(self):
         if self.y >= SCREEN_HEIGHT:
@@ -91,10 +84,10 @@ class Direction(object):
             return False
         else:
             self.y += 0.5
-            self.pos = screen.blit(self.rotated_image, (self.x, self.y))
+            screen.paste(self.rotated_image, (int(self.x), int(self.y)), self.rotated_image)
             return False
 
-# 방향 아이콘 생성과 그리기
+# Creating and drawing direction icons
 def drawIcon():
     global start_ticks, chance
 
@@ -104,62 +97,66 @@ def drawIcon():
     elapsed_time = (pygame.time.get_ticks() - start_ticks)
     if elapsed_time > 400:
         start_ticks = pygame.time.get_ticks()
-        for direc in Directions:
-            if direc.y == -1:
-                direc.y = 0
-                direc.rotate(direction=random.randint(0, 3))
+        for direction in Directions:
+            if direction.y == -1:
+                direction.y = 0
+                direction.rotate(direction=random.randint(0, 3))
                 break
 
-    for direc in Directions:
-        if direc.draw():
+    for direction in Directions:
+        if direction.draw():
             chance -= 1
 
-# 타겟 영역 그리기와 충돌 확인하기
+# Draw target area and check for collisions
 def draw_targetArea():
     global isColl, CollDirection
     isColl = False
-    for direc in Directions:
-        if direc.y == -1:
+    for direction in Directions:
+        if direction.y == -1:
             continue
-        if direc.pos.colliderect(targetArea):
+        if direction.pos.colliderect(targetArea):
             isColl = True
-            CollDirection = direc
+            CollDirection = direction
             break
-    pygame.draw.rect(screen, (255, 255, 255), targetArea, 2)
+    draw = ImageDraw.Draw(screen)
+    draw.rectangle([(targetArea.x, targetArea.y), (targetArea.x + targetArea.width, targetArea.y + targetArea.height)], outline=(255, 255, 255))
 
-# 점수, 콤보, 목숨, 결과
+# Score, combo, lives, result
 def setText():
     global score, chance
-    mFont = pygame.font.SysFont("굴림", 20)
+    font_path = "path/to/your/font.ttf"  # Replace with the path to your font file
+    mFont = ImageFont.truetype(font_path, 20)
 
-    mtext = mFont.render(f'score: {score}', True, 'white')
-    screen.blit(mtext, (10, 10, 0, 0))
+    draw = ImageDraw.Draw(screen)
 
-    mtext = mFont.render(f'combo: {combo}', True, 'white')
-    screen.blit(mtext, (10, 32, 0, 0))
+    mtext = f'score: {score}'
+    draw.text((10, 10), mtext, font=mFont, fill=(255, 255, 255))
 
-    mtext = mFont.render(f'chance: {chance}', True, 'white')
-    screen.blit(mtext, (170, 10, 0, 0))
+    mtext = f'combo: {combo}'
+    draw.text((10, 32), mtext, font=mFont, fill=(255, 255, 255))
+
+    mtext = f'chance: {chance}'
+    draw.text((170, 10), mtext, font=mFont, fill=(255, 255, 255))
 
 def drawGrade():
     global score, chance
 
     if chance <= 0:
-
         if score >= 10000:
-            displayGradeImg = gradeImg[0]
+            displayGradeImg = Image.open("Image/gradeA.png")
         elif score >= 8500:
-            displayGradeImg = gradeImg[1]
+            displayGradeImg = Image.open("Image/gradeB.png")
         elif score >= 6000:
-            displayGradeImg = gradeImg[2]
+            displayGradeImg = Image.open("Image/gradeC.png")
         elif score >= 3000:
-            displayGradeImg = gradeImg[3]
+            displayGradeImg = Image.open("Image/gradeD.png")
         elif score < 3000:
-            displayGradeImg = gradeImg[4]
+            displayGradeImg = Image.open("Image/gradeF.png")
 
-        screen.blit(displayGradeImg, (0, 0))
+        displayGradeImg = displayGradeImg.resize((SCREEN_WIDTH, SCREEN_HEIGHT))
+        screen.paste(displayGradeImg, (0, 0))
 
-# 판정 결과 그리기
+# Draw judgment results
 def drawResult():
     global DrawResult, result_ticks
     if result_ticks > 0:
@@ -169,35 +166,36 @@ def drawResult():
             DrawResult = 0
 
     if DrawResult == 1:
-        displayResultImg = resultImg[1]
+        displayResultImg = Image.open("Image/perfect.png")
     elif DrawResult == 2:
-        displayResultImg = resultImg[2]
+        displayResultImg = Image.open("Image/good.png")
     elif DrawResult == 3:
-        displayResultImg = resultImg[3]
+        displayResultImg = Image.open("Image/bad.png")
     else:
-        displayResultImg = resultImg[0]
+        displayResultImg = Image.open("Image/miss.png")
 
-    screen.blit(displayResultImg, resultImgRec)
+    displayResultImg = displayResultImg.resize((100, 50))
+    screen.paste(displayResultImg, resultImgRec)
 
-# Character 클래스
+# Character class
 class Character(object):
     def __init__(self):
         self.images = {
-            "up": pygame.image.load("Image/characterU.png"),
-            "down": pygame.image.load("Image/characterD.png"),
-            "left": pygame.image.load("Image/characterL.png"),
-            "right": pygame.image.load("Image/characterR.png"),
+            "up": Image.open("Image/characterU.png"),
+            "down": Image.open("Image/characterD.png"),
+            "left": Image.open("Image/characterL.png"),
+            "right": Image.open("Image/characterR.png"),
         }
         self.direction = "down"
         self.image = self.images[self.direction]
-        self.image = pygame.transform.scale(self.image, (80, 80))
-        self.rect = self.image.get_rect()
-        self.rect.centerx = SCREEN_WIDTH // 2 - resultImgRec.width // 2 - 20
-        self.rect.centery = SCREEN_HEIGHT // 2
+        self.image = self.image.resize((80, 80))
+        self.rect = self.image.getbbox()
+        self.rect = (self.rect[0] - resultImgRec.width // 2 - 20, self.rect[1], self.rect[2] - resultImgRec.width // 2 - 20, self.rect[3])
+        self.rect = [int(i) for i in self.rect]
 
     def update_image(self):
         self.image = self.images[self.direction]
-        self.image = pygame.transform.scale(self.image, (80, 80))
+        self.image = self.image.resize((80, 80))
 
     def move(self, direction):
         if direction == 0:
@@ -214,10 +212,9 @@ class Character(object):
         self.update_image()
 
     def draw(self):
-        screen.blit(self.image, self.rect)
+        screen.paste(self.image, (self.rect[0], self.rect[1]), self.image)
 
-
-# 변수
+# variable
 isActive = True
 SCREEN_WIDTH = 240
 SCREEN_HEIGHT = 240
@@ -230,61 +227,49 @@ CollDirection = 0
 DrawResult, result_ticks = 0, 0
 start_ticks = pygame.time.get_ticks()
 
-perfectTolerance = 10  # 사용자 입력이 'Perfect' 판정을 받기 위한 거리 허용 범위
-goodTolerance = 30  # 사용자 입력이 'Good' 판정을 받기 위한 거리 허용 범위
+perfectTolerance = 10  # Distance tolerance range for user input to be judged as 'Perfect'
+goodTolerance = 30  # Distance tolerance range for user input to be evaluated as 'Good'
 
 clock = pygame.time.Clock()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-background = pygame.image.load("Image/background.png")
-background = pygame.transform.scale(background, (SCREEN_WIDTH, SCREEN_HEIGHT))
+screen = Image.new("RGB", (SCREEN_WIDTH, SCREEN_HEIGHT), (0, 0, 0))
 bgm = pygame.mixer.Sound("music.ogg")
 bgm.set_volume(0.7)
 
-Directions = [Direction() for i in range(0, 10)] # 방향 아이콘
-targetArea = Rect(SCREEN_WIDTH / 2, 160, SCREEN_WIDTH / 2, 70) # 타겟 박스
+Directions = [Direction() for i in range(0, 10)]  # Direction icon
+targetArea = ImageDraw.Draw(screen)
+targetArea.rectangle([(SCREEN_WIDTH / 2, 160), (SCREEN_WIDTH, 160 + 70)], outline=(255, 255, 255))
 
-resultFileNames = ["Image/miss.png", "Image/perfect.png", "Image/good.png", "Image/bad.png"] # 결과 이모티콘
-resultImg = []
-for i, name in enumerate(resultFileNames):
-    resultImg.append(pygame.image.load(name))
-    resultImg[i] = pygame.transform.scale(resultImg[i], (100, 50))
+resultFileNames = ["Image/miss.png", "Image/perfect.png", "Image/good.png", "Image/bad.png"]  # Result emoticons
+resultImg = [Image.open(name).resize((100, 50)) for name in resultFileNames]
 resultImgRec = resultImg[0].get_rect()
 resultImgRec.centerx = SCREEN_WIDTH / 2 - resultImgRec.width / 2 - 20
 resultImgRec.centery = targetArea.centery
 
-gradeFileNames = ["Image/gradeA.png", "Image/gradeB.png", "Image/gradeC.png", "Image/gradeD.png", "Image/gradeF.png"] # 결과
-gradeImg = []
-for i, name in enumerate(gradeFileNames):
-    gradeImg.append(pygame.image.load(name))
-    gradeImg[i] = pygame.transform.scale(gradeImg[i], (SCREEN_WIDTH, SCREEN_HEIGHT))
+gradeFileNames = ["Image/gradeA.png", "Image/gradeB.png", "Image/gradeC.png", "Image/gradeD.png",
+                  "Image/gradeF.png"]  # Result
+gradeImg = [Image.open(name).resize((SCREEN_WIDTH, SCREEN_HEIGHT)) for name in gradeFileNames]
 
 character = Character()
 joystick = Joystick()
 
-# 시작화면
-start_image = pygame.image.load("Image/start.png")
-start_image = pygame.transform.scale(start_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
-screen.blit(start_image, (0, 0))
-pygame.display.update()
+# Start screen
+start_image = Image.open("Image/start.png").resize((SCREEN_WIDTH, SCREEN_HEIGHT))
+screen.paste(start_image, (0, 0))
 
-# 아무 키나 누르기 전까지 대기
+# Wait until any key is pressed
 wait_for_key = True
 while wait_for_key:
     for event in pygame.event.get():
         if not joystick.button_A.value:
             wait_for_key = False
 
-# 반복문
-while (isActive):
-    screen.blit(background, (0, 0))
-    bgm.play()
-
-    eventProcess()
+# loop
+while isActive:
     draw_targetArea()
     drawIcon()
     setText()
     drawGrade()
     character.draw()
     drawResult()
-    pygame.display.update()
-    clock.tick(400)
+    screen.show()
+    pygame.time.delay(10)  # Delay for display update
